@@ -124,3 +124,12 @@ fancyRpartPlot(fit)
 Prediction <- predict(fit, test, type = "class")
 submit <- data.frame(PassengerId = test$PassengerId, Survived = Prediction)
 write.csv(submit, file = "featureengineering.csv", row.names = FALSE) #Now at 79.4%
+
+#Random forests, bagging
+summary(combi$Age)
+
+
+
+
+
+
