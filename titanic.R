@@ -126,10 +126,45 @@ submit <- data.frame(PassengerId = test$PassengerId, Survived = Prediction)
 write.csv(submit, file = "featureengineering.csv", row.names = FALSE) #Now at 79.4%
 
 #Random forests, bagging
-summary(combi$Age)
+summary(combi$Age) #20% are NAs
 
+Agefit <- rpart(Age ~ Pclass + Sex + SibSp + Parch + Fare + Embarked + Title + FamilySize, data = combi[!is.na(combi$Age),], method = "anova")
+combi$Age[is.na(combi$Age)] <- predict(Agefit, combi[is.na(combi$Age),]) #now we don't have NAs
 
+summary(combi)
+summary(combi$Embarked) #Embarked has 2 blank values
+which(combi$Embarked == '') #This tells us where those blank values are
+combi$Embarked[c(62, 830)] = "S"
+combi$Embarked <- factor(combi$Embarked) #The blank values are now Southampton
+summary(combi$Fare)
+which(is.na(combi$Fare))
+combi$Fare[1044] <- median(combi$Fare, na.rm = TRUE) #Replacing the one NA with the median fare
 
+combi$FamilyID2 <- combi$FamilyID
+combi$FamilyID2 <- as.character(combi$FamilyID2)
+combi$FamilyID2[combi$FamilySize <= 3] <- 'Small'
+combi$FamilyID2 <- factor(combi$FamilyID2) #reducing family ID manually to fit threshold of random forest
 
+install.packages("randomForest")
+library(randomForest)
+set.seed(415)
+
+train <- combi[1:891,]
+test <- combi[892:1309,]
+fit <- randomForest(as.factor(Survived) ~ Pclass + Sex + Age + SibSp + Parch + Fare + Embarked + Title + FamilySize + FamilyID2, data = train, importance = TRUE, ntree = 2000)
+varImpPlot(fit)
+#Accuracy graph tests to see how worse the model performs without each variable, so high decrease in accuracy is normal for easily predictable variables
+#Gini one measures how pure the nodes are at the end of the trees, high score means variable was important
+Prediction <- predict(fit, test)
+submit <- data.frame(PassengerId = test$PassengerId, Survived = Prediction)
+write.csv(submit, file = "firstforest.csv", row.names = FALSE) #Didn't do better than decision tree
+
+install.packages("party")
+library(party)
+set.seed(415)
+fit <- cforest(as.factor(Survived) ~ Pclass + Sex + Age + SibSp + Parch + Fare + Embarked + Title + FamilySize + FamilyID, data = train, controls=cforest_unbiased(ntree=2000, mtry=3))
+Prediction <- predict(fit, test, OOB=TRUE, type = "response")
+submit <- data.frame(PassengerId = test$PassengerId, Survived = Prediction)
+write.csv(submit, file = "improvedforest.csv", row.names = FALSE) #81.3% improvement
 
 
